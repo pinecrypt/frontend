@@ -1,0 +1,11 @@
+[Unit]
+Description=Run certidude enroll daily
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+Unit=certidude-enroll.service
+
+[Install]
+WantedBy=timers.target
+

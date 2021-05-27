@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>Pinecrypt Gateway</title>
+    <link href="/css/bundle.css" rel="stylesheet" type="text/css"/>
+    <link href="/css/style.css" rel="stylesheet" type="text/css"/>
+    <script type="text/javascript" src="/js/bundle.js"></script>
+    <script type="text/javascript" src="/js/certidude.js"></script>
+    <link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+  </head>
+  <body onhashchange="onHashChanged();">
+    <nav class="navbar navbar-toggleable-md navbar-inverse bg-inverse fixed-top">
+      <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <a class="navbar-brand" href="#columns=2">Pinecrypt Gateway</a>
+
+      <div class="collapse navbar-collapse" id="navbarsExampleDefault">
+        <ul class="navbar-nav mr-auto">
+          <li class="nav-item">
+            <a class="nav-link disabled dashboard" href="#">Dashboard</a>
+          </li>
+          <li class="nav-item hidden-xl-up">
+            <a class="nav-link" href="#">Log</a>
+          </li>
+        </ul>
+        <div class="form-inline my-2 my-lg-0">
+          <input id="search" class="form-control mr-sm-2" style="display:none;" type="search" placeholder="🔍">
+        </div>
+      </div>
+    </nav>
+    <div id="view-dashboard" class="container-fluid" style="margin: 5em 0 0 0;">
+        <div class="loader-container">
+          <div class="loader"></div>
+          <p>Loading certificate authority...</p>
+        </div>
+    </div>
+    <footer class="footer">
+      <div class="container">
+        Pinecrypt Gateway by
+        <a href="https://pinecrypt.com">Pinecrypt Labs</a>
+      </div>
+    </footer>
+  </body>
+</html>
+

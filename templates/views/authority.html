@@ -1,0 +1,270 @@
+<div class="modal fade" id="request_submission_modal" role="dialog">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title">Request submission</h4>
+      </div>
+      <div class="modal-body">
+        <ul class="nav nav-pills" id="myTab" role="tablist">
+          <li class="nav-item">
+            <a class="nav-link active" id="home-tab" data-toggle="tab" href="#snippet-certidude" role="tab" aria-controls="certidude" aria-selected="true">Certidude</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" id="profile-tab" data-toggle="tab" href="#snippet-windows" role="tab" aria-controls="windows" aria-selected="false">Windows</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" id="contact-tab" data-toggle="tab" href="#snippet-unix" role="tab" aria-controls="unix" aria-selected="false">UNIX</a>
+          </li>
+
+          {% if "openvpn" in session.service.protocols %}
+            <li class="nav-item">
+              <a class="nav-link" id="contact-tab" data-toggle="tab" href="#snippet-openvpn" role="tab" aria-controls="openvpn" aria-selected="false">OpenVPN</a>
+            </li>
+          {% endif %}
+
+          {% if "ikev2" in session.service.protocols %}
+            <li class="nav-item">
+              <a class="nav-link" id="contact-tab" data-toggle="tab" href="#snippet-strongswan" role="tab" aria-controls="strongswan" aria-selected="false">StrongSwan</a>
+            </li>
+          {% endif %}
+
+          <li class="nav-item">
+            <a class="nav-link" id="contact-tab" data-toggle="tab" href="#snippet-lede" role="tab" aria-controls="lede" aria-selected="false">LEDE</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" id="contact-tab" data-toggle="tab" href="#snippet-copypaste" role="tab" aria-controls="copypaste" aria-selected="false">Copypasta</a>
+          </li>
+
+        </ul>
+        <div class="tab-content" id="myTabContent">
+          <!-- Certidude client -->
+          <div class="tab-pane fade show active" id="snippet-certidude" role="tabpanel" aria-labelledby="certidude">
+            <p>On Ubuntu or Fedora:</p>
+            <div class="highlight">
+              <pre class="code"><code>{% include "snippets/certidude-client.sh" %}</code></pre>
+            </div>
+          </div>
+
+          <!-- Windows -->
+          <div class="tab-pane fade" id="snippet-windows" role="tabpanel" aria-labelledby="windows">
+            <p>On Windows execute following PowerShell script</p>
+            {% if "ikev2" in session.service.protocols %}
+              <div class="highlight"><pre class="code"><code>{% include "snippets/windows.ps1" %}</code></pre></div>
+            {% endif %}
+          </div>
+
+          <!-- UNIX-like -->
+          <div class="tab-pane fade" id="snippet-unix" role="tabpanel" aria-labelledby="unix">
+            <p>For client certificates generate key pair and submit the signing request with common name set to short hostname:</p>
+            <div class="highlight">
+              <pre class="code"><code>{% include "snippets/request-client.sh" %}</code></pre>
+            </div>
+          </div>
+
+          <!-- OpenVPN as client -->
+          <div class="tab-pane fade" id="snippet-openvpn" role="tabpanel" aria-labelledby="openvpn">
+            <p>First acquire certificates using the snippet above.</p>
+            <p>Then install software:</p>
+            <div class="highlight"><pre class="code"><code>{% include "snippets/openvpn-client.sh" %}</code></pre></div>
+          </div>
+
+          <!-- StrongSwan as client -->
+          <div class="tab-pane fade" id="snippet-strongswan" role="tabpanel" aria-labelledby="strongswan">
+            <p>First acquire certificates using the snippet above.</p>
+
+            <p>Then install software:</p>
+            <div class="highlight">
+              <pre class="code"><code>{% include "snippets/strongswan-patching.sh" %}</code></pre>
+            </div>
+
+            <p>To configure StrongSwan as roadwarrior:</p>
+            <div class="highlight"><pre class="code"><code>{% include "snippets/strongswan-client.sh" %}</code></pre></div>
+          </div>
+
+          <!-- Copy & paste -->
+          <div class="tab-pane fade" id="snippet-copypaste" role="tabpanel" aria-labelledby="copypaste">
+            <p>Use whatever tools you have available on your platform to generate
+            keypair and just paste ASCII armored PEM file contents here and hit submit:</p>
+
+            <form action="/api/request/" method="post">
+              <textarea id="request_body" style="width:100%; min-height: 10em;"
+                placeholder="-----BEGIN CERTIFICATE REQUEST-----"></textarea>
+              <div class="modal-footer">
+                <div class="btn-group">
+                  <button type="button" onclick="onSubmitRequest();" class="btn btn-primary"><i class="fa fa-upload"></i> Submit</button>
+                  <button type="button" class="btn btn-secondary" data-dismiss="modal"><i class="fa fa-ban"></i> Close</button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="revocation_list_modal" role="dialog">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title">Revocation lists</h4>
+      </div>
+      <div class="modal-body">
+        <p>To fetch <a href="http://{{ authority.namespace }}/api/revoked/">certificate revocation list</a>:</p>
+<pre><code>curl http://{{ authority.namespace }}/api/revoked/ > crl.der
+curl http://{{ authority.namespace }}/api/revoked/ -L -H "Accept: application/x-pem-file"
+curl http://{{ authority.namespace }}/api/revoked/?wait=yes -L -H "Accept: application/x-pem-file" > crl.pem</code></pre>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-sm-6 col-lg-4 col-xl-3">
+    <h3>Signed certificates</h3>
+
+    <p>Authority administration
+      {% if authority.certificate.organization %}of {{ authority.certificate.organization }}{% endif %}
+        allowed for
+        {% for user in session.authorization.admin_users %}<a href="mailto:{{ user.mail}}">{{ user.given_name }} {{user.surname }}</a>{% if not loop.last %}, {% endif %}{% endfor %} from {% if "0.0.0.0/0" in session.authorization.admin_subnets %}anywhere{% else %}
+        {% for subnet in session.authorization.admin_subnets %}{{ subnet }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}.
+        Authority valid from
+        <time class="timeago" datetime="{{ authority.certificate.signed }}">{{ authority.certificate.signed }}</time>
+        until
+        <time class="timeago" datetime="{{ authority.certificate.expires }}">{{ authority.certificate.expires }}</time>.
+        Authority certificate can be downloaded from <a href="/api/certificate/">here</a>.
+		Following certificates have been signed:</p>
+
+    <div id="signed-filter" class="btn-group-toggle" data-toggle="buttons">
+      <label class="btn btn-primary"><input id="signed-filter-new" type="checkbox" autocomplete="off">New</label>
+      <label class="btn btn-primary active"><input id="signed-filter-online" type="checkbox" autocomplete="off" checked>Online</label>
+      <label class="btn btn-primary"><input id="signed-filter-offline" type="checkbox" autocomplete="off">Lately seen</label>
+      <label class="btn btn-primary"><input id="signed-filter-dead" type="checkbox" autocomplete="off">Gone</label>
+    </div>
+
+    <div id="signed_certificates">
+    {% for certificate in session.signed | sort(attribute="signed", reverse=true) %}
+      {% include "views/signed.html" %}
+    {% endfor %}
+    </div>
+
+    <p>Showing <span id="signed-filter-counter">-</span> of total <span id="signed-total">-</span> certificates</p>
+  </div>
+  <div class="col-sm-6 col-lg-4 col-xl-3">
+    {% if session.features.token %}
+      <h3>Tokens</h3>
+      <p>Tokens allow enrolling smartphones and third party devices.</p>
+      <ul>
+        <li>You can issue yourself a token to be used on a mobile device</li>
+        <li>Enter username to issue a token to issue a token for another user</li>
+        <li>Enter e-mail address to issue a token to guest users outside domain</li>
+      </ul>
+      <p>
+        <div class="input-group">
+            <input id="token_username" name="username" type="text" class="form-control" placeholder="Username" aria-describedby="sizing-addon2">
+            <input id="token_mail" name="mail" type="mail" class="form-control" placeholder="Optional e-mail" aria-describedby="sizing-addon2">
+            <span class="input-group-btn">
+                <button class="btn btn-secondary" type="button" onClick="onIssueToken();"><i class="fa fa-send"></i> Send token</button>
+            </span>
+        </div>
+      </p>
+
+      <p>Issued tokens:</p>
+      <ul class="list-group">
+        {% for token in session.tokens %}
+          {% include "views/token.html" %}
+        {% endfor %}
+      </ul>
+
+      <div id="token_qrcode"></div>
+    {% endif %}
+
+    {% if session.authorization.request_subnets %}
+      <p>&nbsp;</p>
+      <h3>Pending requests</h3>
+
+      <p>Use Certidude client to apply for a certificate.
+
+      {% if not session.authorization.request_subnets %}
+         Request submission disabled.
+      {% elif "0.0.0.0/0" in session.authorization.request_subnets %}
+         Request submission is enabled.
+      {% else %}
+         Request submission allowed from
+         {% for subnet in session.authorization.request_subnets %}
+           {{ subnet }}{% if not loop.last %}, {% endif %}
+         {% endfor %}.
+      {% endif %}
+
+      See <a href="#request_submission_modal" data-toggle="modal">here</a> for more information on manual signing request upload.
+
+      {% if session.authorization.autosign_subnets %}
+          {% if "0.0.0.0/0" in session.authorization.autosign_subnets %}
+              All requests are automatically signed.
+          {% else %}
+             Requests from
+                  {% for subnet in session.authorization.autosign_subnets %}
+                      {{ subnet }}{% if not loop.last %}, {% endif %}
+                  {% endfor %}
+             are automatically signed.
+          {% endif %}
+      {% endif %}
+
+      </p>
+      <div id="pending_requests">
+        {% for request in session.requests | sort(attribute="submitted", reverse=true) %}
+          {% include "views/request.html" %}
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {% if session.builder.profiles %}
+      <h3>LEDE imagebuilder</h3>
+      <p>Hit a link to generate machine specific image. Note that this might take couple minutes to finish.</p>
+      <ul>
+        {% for name, title, filename in session.builder.profiles %}
+          <li><a href="/api/builder/{{ name }}/{{ filename }}">{{ title }}</a></li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+  </div>
+  <div class="col-sm-6 col-lg-4 col-xl-3">
+
+    <h3>Revoked certificates</h3>
+    <p>Following certificates have been revoked{% if session.features.crl %}, for more information click
+    <a href="#revocation_list_modal" data-toggle="modal">here</a>{% endif %}.</p>
+
+    {% for certificate in session.revoked | sort(attribute="revoked", reverse=true) %}
+      {% include "views/revoked.html" %}
+    {% endfor %}
+  </div>
+  <div id="column-log" class="col-sm-6 col-lg-4 col-xl-3 hidden-lg-down">
+    <div class="loader-container">
+      <div class="loader"></div>
+      <p>Loading logs, this might take a while...</p>
+    </div>
+    <div class="content" style="display:none;">
+      <h3>Log</h3>
+      <div class="btn-group-toggle" data-toggle="buttons">
+        <label class="btn btn-primary active"><input id="log-level-critical" type="checkbox" autocomplete="off" checked>Critical</label>
+        <label class="btn btn-primary active"><input id="log-level-error" type="checkbox" autocomplete="off" checked>Error</label>
+        <label class="btn btn-primary active"><input id="log-level-warning" type="checkbox" autocomplete="off" checked>Warn</label>
+        <label class="btn btn-primary active"><input id="log-level-info" type="checkbox" autocomplete="off" checked>Info</label>
+        <label class="btn btn-primary"><input id="log-level-debug" type="checkbox" autocomplete="off">Debug</label>
+      </div>
+      <ul id="log-entries" class="list-group">
+      </ul>
+      <p>Click here to load more entries</p>
+    </div>
+  </div>
+</div>

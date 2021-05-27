@@ -1,0 +1,104 @@
+
+@keyframes fresh {
+    from { background-color: #ffc107; }
+    to { background-color: white; }
+}
+
+.fresh {
+    animation-name: fresh;
+    animation-duration: 30s;
+}
+
+.loader-container {
+    margin: 20% auto 0 auto;
+    text-align: center;
+}
+
+.loader {
+    border: 16px solid #f3f3f3; /* Light grey */
+    border-top: 16px solid #3498db; /* Blue */
+    border-radius: 50%;
+    width: 120px;
+    height: 120px;
+    animation: spin 2s linear infinite;
+    display: inline-block;
+}
+
+@font-face {
+  font-family: 'PT Sans Narrow';
+  font-style: normal;
+  font-weight: 400;
+  src: local('PT Sans Narrow'), local('PTSans-Narrow'), url('../fonts/pt-sans.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Ubuntu Mono';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Ubuntu Mono'), local('UbuntuMono-Regular'), url('../fonts/ubuntu-mono.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Gentium Basic';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Gentium Basic'), local('GentiumBasic'), url('../fonts/gentium-basic.woff2') format('woff2');
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+body, input {
+}
+
+body, input {
+}
+
+pre {
+    font-family: 'Ubuntu Mono';
+    background: #333;
+    overflow: auto;
+    border: 1px solid #292929;
+    border-radius: 4px;
+    color: #ddd;
+    padding: 6px 10px;
+}
+
+pre code a {
+    color: #eef;
+}
+
+h1, h2 {
+}
+
+
+#view {
+    margin: 5em auto 5em auto;
+
+}
+
+footer div {
+    text-align: center;
+}
+
+svg {
+    position: relative;
+}
+
+.badge {
+    cursor: pointer;
+}
+
+.disabled {
+    pointer-events: none;
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+#signed_certificates .filterable .fa-circle { color: #888888; }
+#signed_certificates .filterable[data-state='online'] .fa-circle { color: #5cb85c; }
+#signed_certificates .filterable[data-state='offline'] .fa-circle { color: #0275d8; }
+#signed_certificates .filterable[data-state='dead'] .fa-circle { color: #d9534f; }
+

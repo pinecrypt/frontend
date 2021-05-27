@@ -1,0 +1,13 @@
+repos:
+-   repo: https://github.com/jorisroovers/gitlint
+    rev: v0.15.1
+    hooks:
+    -   id: gitlint
+
+-   repo: https://github.com/Lucas-C/pre-commit-hooks-nodejs
+    rev: v1.1.1
+    hooks:
+    -   id: htmlhint
+        args: [--config, .htmlhintrc]
+    -   id: htmllint
+    -   id: dockerfile_lint

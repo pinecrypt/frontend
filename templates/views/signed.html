@@ -1,0 +1,134 @@
+<div id="certificate-{{ certificate.id }}" class="card filterable mt-3"
+  {% if certificate.lease %}data-last-seen={{ certificate.lease.last_seen }}{% endif %}
+  data-keywords="{{ certificate.common_name }}|{% if session.tagging %}{% for tag in certificate.tags %}{{ tag.id }}|{% endfor %}{% endif %}{% for key, value in certificate.attributes %}{{ key }}={{ value }}|{% endfor %}" data-id="{{certificate.id}}">
+  <div class="card-header">
+    {% if certificate.organizational_unit %}
+      <i class="fa fa-folder" aria-hidden="true"></i>
+    {{ certificate.organizational_unit }} /
+    {% endif %}
+    {% if certificate.extensions.extended_key_usage and "server_auth" in certificate.extensions.extended_key_usage %}
+      <i class="fa fa-server"></i>
+    {% else %}
+      <i class="fa fa-laptop"></i>
+    {% endif %}
+    {{ certificate.common_name }}
+  </div>
+  <div class="card-block">
+    <p>
+      <i class="fa fa-circle"></i>
+      <span class="lease">
+        {% if certificate.lease %}
+          {% include "views/lease.html" %}
+        {% endif %}
+      </span>
+
+      Signed
+      <time class="timeago" datetime="{{ certificate.signed }}">Certificate was signed {{ certificate.signed }}</time>{% if certificate.signer %} by {{ certificate.signer }}{% endif %},
+      expires
+      <time class="timeago" datetime="{{ certificate.expires }}">Certificate expires {{ certificate.expires }}</time>.
+    </p>
+    <p>
+    {% if session.tagging %}
+      <span class="tags" data-cn="{{ certificate.common_name }}">
+        {% include "views/tags.html" %}
+      </span>
+    {% endif %}
+      <span class="attributes" data-cn="{{ certificate.common_name }}">
+        {% include "views/attributes.html" %}
+      </span>
+    </p>
+
+    <div class="btn-group">
+      <button type="button" class="btn btn-secondary" data-toggle="collapse" data-target="#details-{{ certificate.sha256sum }}"><i class="fa fa-list"></i> Details</button>
+      <button type="button" class="btn btn-danger"
+       onclick="javascript:$(this).button('loading');$.ajax({url:'/api/signed/{{certificate.common_name}}/?sha256sum={{ certificate.sha256sum }}',type:'delete'});">
+       <i class="fa fa-ban"></i> Revoke</button>
+      <button type="button" class="btn btn-danger dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <span class="sr-only">Toggle Dropdown</span>
+      </button>
+      <div class="dropdown-menu">
+        <a class="dropdown-item" href="#"
+          onclick="javascript:$(this).button('loading');$.ajax({url:'/api/signed/{{certificate.common_name}}/?sha256sum={{ certificate.sha256sum }}&reason=key_compromise',type:'delete'});">Revoke due to key compromise</a>
+        <a class="dropdown-item" href="#"
+          onclick="javascript:$(this).button('loading');$.ajax({url:'/api/signed/{{certificate.common_name}}/?sha256sum={{ certificate.sha256sum }}&reason=cessation_of_operation',type:'delete'});">Revoke due to cessation of operation</a>
+        <a class="dropdown-item" href="#"
+          onclick="javascript:$(this).button('loading');$.ajax({url:'/api/signed/{{certificate.common_name}}/?sha256sum={{ certificate.sha256sum }}&reason=privilege_withdrawn',type:'delete'});">Revoke due to withdrawn privilege</a>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      {% if session.tagging %}
+        <button type="button" class="btn btn-default" onclick="onNewTagClicked(event);" data-key="other" data-cn="{{ certificate.common_name }}">
+         <i class="fa fa-tag"></i> Tag</button>
+        <button type="button" class="btn btn-default dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          <span class="sr-only">Toggle Dropdown</span>
+        </button>
+        <div class="dropdown-menu">
+          {% for tag_category in session.tagging %}
+          <a class="dropdown-item" href="#" data-key="{{ tag_category.name }}" data-cn="{{ certificate.common_name }}"
+            onclick="onNewTagClicked(event);">{{ tag_category.title }}</a>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="collapse" id="details-{{ certificate.sha256sum }}">
+      <p>To launch shell for this device, click <a href="#" onclick="onLaunchShell('{{ certificate.common_name }}')">here</a>
+      <p>To fetch certificate:</p>
+
+      <div class="bd-example">
+        <pre><code class="language-sh" data-lang="sh">wget <a href="/api/signed/{{ certificate.common_name }}/">http://{{ authority.namespace }}/api/signed/{{ certificate.common_name }}</a>
+curl -L http://{{ authority.namespace }}/api/signed/{{ certificate.common_name }}/ \
+  | openssl x509 -text -noout</code></pre>
+      </div>
+
+      {% if session.authorization.ocsp_subnets %}
+      {% if certificate.responder_url %}
+      <p>To perform online certificate status request{% if "0.0.0.0/0" not in session.authorization.ocsp_subnets %}
+      from whitelisted {{ session.authorization.ocsp_subnets }} subnets{% endif %}:</p>
+      <pre><code class="language-bash" data-lang="bash">curl http://{{ authority.namespace }}/api/certificate > session.pem
+openssl ocsp -issuer session.pem -CAfile session.pem \
+  -url {{ certificate.responder_url }} \
+  -serial 0x{{ certificate.serial }}</code></pre>
+      {% else %}
+      <p>Querying OCSP responder disabled for this certificate, see /etc/certidude/profile.conf how to enable if that's desired</p>
+      {% endif %}
+      {% endif %}
+
+      <p>To fetch script:</p>
+      <pre><code class="language-bash" data-lang="bash">curl -L --cert-status https://{{ authority.namespace }}:8443/api/signed/{{ certificate.common_name }}/script/ \
+    --cacert /etc/certidude/authority/{{ authority.namespace }}/ca_cert.pem \
+    --key /etc/certidude/authority/{{ authority.namespace }}/host_key.pem \
+    --cert /etc/certidude/authority/{{ authority.namespace }}/host_cert.pem</pre></code>
+
+      <div style="overflow: auto; max-width: 100%;">
+        <table class="table" id="signed_certificates">
+          <tbody>
+            <tr><th>Common&nbsp;name</th><td>{{ certificate.common_name }}</td></tr>
+            <tr><th>Organizational&nbsp;unit</th><td>{% if certificate.organizational_unit %}{{ certificate.organizational_unit }}{% else %}-{% endif %}</td></tr>
+            <tr><th>Serial number</th><td style="word-wrap:break-word;">{{ certificate.serial | serial }}</td></tr>
+            <tr><th>Signed</th><td>{{ certificate.signed | datetime  }}{% if certificate.signer %} by {{ certificate.signer }}{% endif %}</td></tr>
+            <tr><th>Expires</th><td>{{ certificate.expires | datetime  }}</td></tr>
+            {% if certificate.lease %}
+            <tr><th>Lease</th><td><a href="http://{{ certificate.lease.inner_address }}">{{ certificate.lease.inner_address }}</a> at {{ certificate.lease.last_seen | datetime  }}
+              from <a href="https://geoiptool.com/en/?ip={{ certificate.lease.outer_address }}" target="_blank">{{ certificate.lease.outer_address }}</a>
+            </td></tr>
+            {% endif %}
+
+            <!--
+            <tr><th>MD5</th><td>{{ certificate.md5sum }}</td></tr>
+            <tr><th>SHA1</th><td>{{ certificate.sha1sum }}</td></tr>
+            -->
+            <tr><th>SHA256</th><td style="word-wrap:break-word;  overflow-wrap: break-word;  ">{{ certificate.sha256sum }}</td></tr>
+            {% if certificate.key_usage %}
+            <tr><th>Key usage</th><td>{{ certificate.key_usage | join(", ") | replace("_", " ") }}</td></tr>
+            {% endif %}
+            {% if certificate.extended_key_usage %}
+            <tr><th>Extended key usage</th><td>{{ certificate.extended_key_usage | join(", ") | replace("_", " ") }}</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

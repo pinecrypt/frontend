@@ -1,0 +1,22 @@
+{
+    "attr-lowercase": true,
+    "attr-no-duplication": true,
+    "attr-unsafe-chars": true,
+    "attr-value-double-quotes": true,
+    "attr-value-not-empty": true,
+    "doctype-first": false,
+    "head-script-disabled": true,
+    "href-abs-or-rel": true,
+    "id-class-ad-disabled": true,
+    "id-class-value": true,
+    "id-unique": true,
+    "img-alt-require": true,
+    "space-tab-mixed-disabled": true,
+    "spec-char-escape": true,
+    "src-not-empty": true,
+    "style-disabled": true,
+    "tag-pair": true,
+    "tag-self-close": true,
+    "tagname-lowercase": true,
+    "title-require": true
+}
