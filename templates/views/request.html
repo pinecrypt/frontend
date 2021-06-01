@@ -19,11 +19,11 @@
       <button type="button" class="btn btn-secondary" data-toggle="collapse" data-target="#details-{{ request.sha256sum }}"><i class="fa fa-list"></i> Details</button>
       <button type="button" class="btn btn-danger"
         data-loading-text="<i class='fa fa-circle-o-notch fa-spin'></i> Rejecting..."
-        onclick="onRejectRequest(event, '{{ request.common_name }}', '{{ request.sha256sum }}');">
+        onclick="onRejectRequest(event, '{{ request.id }}', '{{ request.sha256sum }}');">
         <i class="fa fa-trash"></i> Reject</button>
       <button type="button" class="btn btn-success"
         data-loading-text="<i class='fa fa-circle-o-notch fa-spin'></i> Processing Order"
-        onclick="onSignRequest(event, '{{ request.common_name }}', '{{ request.sha256sum }}');">
+        onclick="onSignRequest(event, '{{ request.id }}', '{{ request.sha256sum }}');">
         <i class="fa fa-thumbs-up"></i> Approve</button>
       <button type="button" class="btn btn-success dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         <span class="sr-only">Toggle Dropdown</span>
@@ -32,7 +32,7 @@
         {% for p in authority.signature.profiles %}
           <a class="dropdown-item{% if not request.common_name.match(p.common_name) %} disabled{% endif %}"
             {% if not request.common_name.match(p.common_name) %} title="Common name doesn't match expression {{ p.common_name }}"{% endif %}
-            href="#" onclick="javascript:$.ajax({url:'/api/request/{{request.common_name}}/?sha256sum={{ request.sha256sum }}&profile={{ p.key }}',type:'post'});">
+            href="#" onclick="javascript:$.ajax({url:'/api/request/id/{{request.id}}/?sha256sum={{ request.sha256sum }}&profile={{ p.key }}',type:'post'});">
             {{ p.key }}, expires in {{ p.lifetime }} days</a>
         {% endfor %}
       </div>

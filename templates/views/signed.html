@@ -29,7 +29,7 @@
     </p>
     <p>
     {% if session.tagging %}
-      <span class="tags" data-cn="{{ certificate.common_name }}">
+      <span class="tags" data-cn="{{ certificate.common_name }}" data-id="{{ certificate.id }}">
         {% include "views/tags.html" %}
       </span>
     {% endif %}
@@ -41,24 +41,24 @@
     <div class="btn-group">
       <button type="button" class="btn btn-secondary" data-toggle="collapse" data-target="#details-{{ certificate.sha256sum }}"><i class="fa fa-list"></i> Details</button>
       <button type="button" class="btn btn-danger"
-       onclick="javascript:$(this).button('loading');$.ajax({url:'/api/signed/{{certificate.common_name}}/?sha256sum={{ certificate.sha256sum }}',type:'delete'});">
+       onclick="javascript:$(this).button('loading');$.ajax({url:'/api/signed/id/{{certificate.id}}/?sha256sum={{ certificate.sha256sum }}',type:'delete'});">
        <i class="fa fa-ban"></i> Revoke</button>
       <button type="button" class="btn btn-danger dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         <span class="sr-only">Toggle Dropdown</span>
       </button>
       <div class="dropdown-menu">
         <a class="dropdown-item" href="#"
-          onclick="javascript:$(this).button('loading');$.ajax({url:'/api/signed/{{certificate.common_name}}/?sha256sum={{ certificate.sha256sum }}&reason=key_compromise',type:'delete'});">Revoke due to key compromise</a>
+          onclick="javascript:$(this).button('loading');$.ajax({url:'/api/signed/id/{{certificate.id}}/?sha256sum={{ certificate.sha256sum }}&reason=key_compromise',type:'delete'});">Revoke due to key compromise</a>
         <a class="dropdown-item" href="#"
-          onclick="javascript:$(this).button('loading');$.ajax({url:'/api/signed/{{certificate.common_name}}/?sha256sum={{ certificate.sha256sum }}&reason=cessation_of_operation',type:'delete'});">Revoke due to cessation of operation</a>
+          onclick="javascript:$(this).button('loading');$.ajax({url:'/api/signed/id/{{certificate.id}}/?sha256sum={{ certificate.sha256sum }}&reason=cessation_of_operation',type:'delete'});">Revoke due to cessation of operation</a>
         <a class="dropdown-item" href="#"
-          onclick="javascript:$(this).button('loading');$.ajax({url:'/api/signed/{{certificate.common_name}}/?sha256sum={{ certificate.sha256sum }}&reason=privilege_withdrawn',type:'delete'});">Revoke due to withdrawn privilege</a>
+          onclick="javascript:$(this).button('loading');$.ajax({url:'/api/signed/id/{{certificate.id}}/?sha256sum={{ certificate.sha256sum }}&reason=privilege_withdrawn',type:'delete'});">Revoke due to withdrawn privilege</a>
       </div>
     </div>
 
     <div class="btn-group">
       {% if session.tagging %}
-        <button type="button" class="btn btn-default" onclick="onNewTagClicked(event);" data-key="other" data-cn="{{ certificate.common_name }}">
+        <button type="button" class="btn btn-default" onclick="onNewTagClicked(event);" data-key="other" data-cn="{{ certificate.common_name }}" data-id="{{ certificate.id }}">
          <i class="fa fa-tag"></i> Tag</button>
         <button type="button" class="btn btn-default dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
           <span class="sr-only">Toggle Dropdown</span>
@@ -66,7 +66,7 @@
         <div class="dropdown-menu">
           {% for tag_category in session.tagging %}
           <a class="dropdown-item" href="#" data-key="{{ tag_category.name }}" data-cn="{{ certificate.common_name }}"
-            onclick="onNewTagClicked(event);">{{ tag_category.title }}</a>
+            onclick="onNewTagClicked(event);" data-id="{{ certificate.id }}">{{ tag_category.title }}</a>
           {% endfor %}
         </div>
       {% endif %}

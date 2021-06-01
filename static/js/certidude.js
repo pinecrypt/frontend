@@ -30,19 +30,19 @@ function onLaunchShell(common_name) {
     return false;
 }
 
-function onRejectRequest(e, common_name, sha256sum) {
+function onRejectRequest(e, id, sha256sum) {
   $(this).button('loading');
   $.ajax({
-    url: "/api/request/" + common_name + "/?sha256sum=" + sha256sum,
+    url: "/api/request/id/" + id + "/?sha256sum=" + sha256sum,
     type: "delete"
   });
 }
 
-function onSignRequest(e, common_name, sha256sum) {
+function onSignRequest(e, id, sha256sum) {
   e.preventDefault();
   $(e.target).button('loading');
   $.ajax({
-    url: "/api/request/" + common_name + "/?sha256sum=" + sha256sum,
+    url: "/api/request/id/" + id + "/?sha256sum=" + sha256sum,
     type: "post"
   });
   return false;
@@ -284,6 +284,7 @@ function onHashChanged() {
 function onTagClicked(e) {
     e.preventDefault();
     var cn = $(e.target).attr("data-cn");
+    var cert_id = $(e.target).attr("data-id");
     var id = $(e.target).attr("title");
     var value = $(e.target).html();
     var updated = prompt("Enter new tag or clear to remove the tag", value);
@@ -291,13 +292,13 @@ function onTagClicked(e) {
         $(event.target).addClass("disabled");
         $.ajax({
             method: "DELETE",
-            url: "/api/signed/" + cn + "/tag/" + id + "/"
+            url: "/api/signed/id/" + cert_id + "/tag/" + id + "/"
         });
     } else if (updated && updated != value) {
         $(e.target).addClass("disabled");
         $.ajax({
             method: "PUT",
-            url: "/api/signed/" + cn + "/tag/" + id + "/",
+            url: "/api/signed/id/" + cert_id + "/tag/" + id + "/",
             data: { value: updated },
             dataType: "text",
             complete: function(xhr, status) {
@@ -319,13 +320,14 @@ function onNewTagClicked(e) {
     var cn = $(e.target).attr("data-cn");
     var key = $(e.target).attr("data-key");
     var value = prompt("Enter new " + key + " tag for " + cn);
+    var id = $(e.target).attr("data-id");
     if (!value) return;
     if (value.length == 0) return;
-    var $container = $(".tags[data-cn='" + cn + "']");
+    var $container = $(".tags[data-id='" + id + "']");
     $container.addClass("disabled");
     $.ajax({
         method: "POST",
-        url: "/api/signed/" + cn + "/tag/",
+        url: "/api/signed/id/" + id + "/tag/",
         data: { value: value, key: key },
         dataType: "text",
         complete: function(xhr, status) {
@@ -446,18 +448,19 @@ function onCertificateRevoked(e) {
 }
 
 function onTagUpdated(e) {
-    var cn = e.data;
-    console.log("Tag updated event recevied", cn);
+    var id = e.data;
+
+    console.log("Tag updated event recevied", id);
     $.ajax({
         method: "GET",
-        url: "/api/signed/" + cn + "/tag/",
+        url: "/api/signed/id/" + id + "/tag/",
         dataType: "json",
         success:function(tags, status, xhr) {
-            console.info("Updated", cn, "tags", tags);
-            $(".tags[data-cn='" + cn+"']").html(
+            console.info("Updated", id, "tags", tags);
+            $(".tags[data-id='" + id+"']").html(
                 env.render('views/tags.html', {
                     certificate: {
-                        common_name: cn,
+                        id:id,
                         tags:tags }}));
         }
     })
