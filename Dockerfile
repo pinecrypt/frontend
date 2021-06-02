@@ -1,5 +1,5 @@
-FROM alpine as build
-MAINTAINER lauri <lauri@pinecrypt.com>
+FROM alpine
+MAINTAINER Pinecrypt Labs <info@pinecrypt.com>
 RUN apk add --update npm nginx rsync bash
 RUN npm install --silent --no-optional -g nunjucks@2.5.2 nunjucks-date@1.2.0 node-forge bootstrap@4.0.0-alpha.6 jquery timeago tether font-awesome qrcode-svg xterm
 COPY nginx.conf /etc/nginx/nginx.conf
