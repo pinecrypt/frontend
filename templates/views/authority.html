@@ -130,7 +130,7 @@ curl http://{{ authority.namespace }}/api/revoked/?wait=yes -L -H "Accept: appli
 
 <div class="row">
   <div class="col-sm-6 col-lg-4 col-xl-3">
-    <h3>Signed certificates</h3>
+    <h3>Valid nodes</h3>
 
     <p>Authority administration
       {% if authority.certificate.organization %}of {{ authority.certificate.organization }}{% endif %}
@@ -157,7 +157,7 @@ curl http://{{ authority.namespace }}/api/revoked/?wait=yes -L -H "Accept: appli
     {% endfor %}
     </div>
 
-    <p>Showing <span id="signed-filter-counter">-</span> of total <span id="signed-total">-</span> certificates</p>
+    <p>Showing <span id="signed-filter-counter">-</span> of total <span id="signed-total">-</span> nodes</p>
   </div>
   <div class="col-sm-6 col-lg-4 col-xl-3">
     {% if session.features.token %}
@@ -192,7 +192,7 @@ curl http://{{ authority.namespace }}/api/revoked/?wait=yes -L -H "Accept: appli
       <p>&nbsp;</p>
       <h3>Pending requests</h3>
 
-      <p>Use Certidude client to apply for a certificate.
+      <p>Use Certidude client to enroll a node.
 
       {% if not session.authorization.request_subnets %}
          Request submission disabled.
@@ -240,7 +240,7 @@ curl http://{{ authority.namespace }}/api/revoked/?wait=yes -L -H "Accept: appli
   </div>
   <div class="col-sm-6 col-lg-4 col-xl-3">
 
-    <h3>Revoked certificates</h3>
+    <h3>Revoked nodes</h3>
     <p>Following certificates have been revoked{% if session.features.crl %}, for more information click
     <a href="#revocation_list_modal" data-toggle="modal">here</a>{% endif %}.</p>
 

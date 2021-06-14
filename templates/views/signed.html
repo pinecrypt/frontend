@@ -22,10 +22,10 @@
         {% endif %}
       </span>
 
-      Signed
-      <time class="timeago" datetime="{{ certificate.signed }}">Certificate was signed {{ certificate.signed }}</time>{% if certificate.signer %} by {{ certificate.signer }}{% endif %},
+      Approved
+      <time class="timeago" datetime="{{ certificate.signed }}">Node was approved {{ certificate.signed }}</time>{% if certificate.signer %} by {{ certificate.signer }}{% endif %},
       expires
-      <time class="timeago" datetime="{{ certificate.expires }}">Certificate expires {{ certificate.expires }}</time>.
+      <time class="timeago" datetime="{{ certificate.expires }}">Node expires {{ certificate.expires }}</time>.
     </p>
     <p>
     {% if session.tagging %}
