@@ -1,7 +1,8 @@
 FROM alpine
 MAINTAINER Pinecrypt Labs <info@pinecrypt.com>
 RUN apk add --update npm nginx rsync bash
-RUN npm install --silent --no-optional -g nunjucks@2.5.2 nunjucks-date@1.2.0 node-forge bootstrap@4.0.0-alpha.6 jquery timeago tether font-awesome qrcode-svg xterm
+RUN npm install --prefix /usr/local --silent --no-optional -g nunjucks@2.5.2 nunjucks-date@1.2.0 node-forge bootstrap@4.0.0-alpha.6 jquery timeago tether font-awesome qrcode-svg xterm
+RUN test -e /usr/local/lib/node_modules/jquery/dist/jquery.min.js
 COPY nginx.conf /etc/nginx/nginx.conf
 EXPOSE 80 443 8443
 WORKDIR /var/lib/nginx/html/
