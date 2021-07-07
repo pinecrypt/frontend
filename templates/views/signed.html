@@ -40,6 +40,11 @@
 
     <div class="btn-group">
       <button type="button" class="btn btn-secondary" data-toggle="collapse" data-target="#details-{{ certificate.sha256sum }}"><i class="fa fa-list"></i> Details</button>
+      {% if certificate.disabled %}
+          <button id="availability-{{ certificate.id }}" type="button" class="btn btn-secondary" onclick="onToggleAccessButtonClicked(event);" data-value="{{ certificate.disabled}}" data-id="{{ certificate.id }}" data-cn="{{ certificate.common_name }}">Enable</button>
+      {% else %}
+          <button id="availability-{{ certificate.id }}" type="button" class="btn btn-secondary" onclick="onToggleAccessButtonClicked(event);" data-value="{{ certificate.disabled}}" data-id="{{ certificate.id }}" data-cn="{{ certificate.common_name }}">Disable</button>
+      {% endif %}
       <button type="button" class="btn btn-danger"
        onclick="javascript:$(this).button('loading');$.ajax({url:'/api/signed/id/{{certificate.id}}/?sha256sum={{ certificate.sha256sum }}',type:'delete'});">
        <i class="fa fa-ban"></i> Revoke</button>

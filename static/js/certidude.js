@@ -281,6 +281,24 @@ function onHashChanged() {
 
 }
 
+function onToggleAccessButtonClicked(e) {
+    e.preventDefault();
+    var cn = $(e.target).attr("data-cn");
+    var id = $(e.target).attr("data-id");
+
+    var value = $(e.target).attr("data-value") == 'True';
+
+    var confirm = window.confirm("Do you want to disable " + cn);
+
+    if (confirm) {
+        $.ajax({
+            method: "POST",
+            url: "/api/toggleaccess/id/" + id + "/?disable=" + !value
+        });
+    }
+}
+
+
 function onTagClicked(e) {
     e.preventDefault();
     var cn = $(e.target).attr("data-cn");
@@ -543,6 +561,29 @@ function onIssueToken() {
     });
 }
 
+function onInstanceAvailabilityUpdated(e) {
+
+    var id = e.data;
+
+    $.ajax({
+        method: "GET",
+        dataType: "text",
+        url: "/api/toggleaccess/id/"+id,
+        success: function(data) {
+
+            var value = data == 'True'
+
+            if(value) {
+                $("#availability-"+id).html("Enable");
+                $("#availability-"+id).attr("data-value","True");
+            } else {
+                $("#availability-"+id).html("Disable");
+                $("#availability-"+id).attr("data-value","False");
+            }
+        }
+    });
+}
+
 function filterSigned() {
     if ($("#search").val() != "") {
         console.info("Not filtering by state since keyword filter is active");
@@ -642,6 +683,7 @@ function loadAuthority(query) {
                 source.addEventListener("attribute-update", onAttributeUpdated);
                 source.addEventListener("server-started", onServerStarted);
                 source.addEventListener("server-stopped", onServerStopped);
+                source.addEventListener("instance-access-update", onInstanceAvailabilityUpdated);
 
             }
 
