@@ -1,10 +1,31 @@
+"use strict";
+import * as asn1js from "asn1js";
+import {
+  arrayBufferToString,
+  stringToArrayBuffer,
+  toBase64,
+  fromBase64,
+  bufferToHexCodes
+} from "pvutils";
+import {
+  getCrypto,
+  getAlgorithmParameters,
+} from "../node_modules/pkijs/src/common.js";
+import { formatPEM } from "./formatPEM.js";
+import CertificationRequest from "../node_modules/pkijs/src/CertificationRequest.js";
+import AttributeTypeAndValue from "../node_modules/pkijs/src/AttributeTypeAndValue.js";
+import Certificate from "../node_modules/pkijs/src/Certificate.js";
 
-'use strict';
-
+let hashAlg = "SHA-384";
+let signAlg = "RSASSA-PKCS1-V1_5";
 const KEY_SIZE = 2048;
 const DEVICE_KEYWORDS = ["Android", "iPhone", "iPad", "Windows", "Ubuntu", "Fedora", "Mac", "Linux"];
 
 jQuery.timeago.settings.allowFuture = true;
+
+const crypto = getCrypto();
+if (typeof crypto === "undefined")
+  console.error("No WebCrypto extension found");
 
 function onLaunchShell(common_name) {
     $.post({
@@ -60,61 +81,114 @@ function onShowAll() {
 }
 
 function onKeyGen() {
-  if (window.navigator.userAgent.indexOf(" Edge/") >= 0) {
-    $("#enroll .loader-container").hide();
-    $("#enroll .edge-broken").show();
-    return;
-  }
-
-  window.keys = forge.pki.rsa.generateKeyPair(KEY_SIZE);
-  console.info('Key-pair created.');
-
-  window.csr = forge.pki.createCertificationRequest();
-  csr.publicKey = keys.publicKey;
-  csr.setSubject([{
-    name: 'commonName', value: common_name
-  }]);
-
-  csr.sign(keys.privateKey, forge.md.sha384.create());
-  console.info('Certification request created');
-
-
-  $("#enroll .loader-container").hide();
-
-  var prefix = null;
-  for (i in DEVICE_KEYWORDS) {
-    var keyword = DEVICE_KEYWORDS[i];
-    if (window.navigator.userAgent.indexOf(keyword) >= 0) {
-      prefix = keyword.toLowerCase();
-      break;
-    }
-  }
-
-  if (prefix == null) {
-      $(".option").show();
+  return new Promise((resolve, reject) => {
+    if (window.navigator.userAgent.indexOf(" Edge/") >= 0) {
+      $("#enroll .loader-container").hide();
+      $("#enroll .edge-broken").show();
       return;
-  }
+    }
 
-  var protocols = query.protocols.split(",");
-  console.info("Showing snippets for:", protocols);
-  for (var j = 0; j < protocols.length; j++) {
-      var options = document.querySelectorAll(".option." + protocols[j] + "." + prefix);
-      for (i = 0; i < options.length; i++) {
-          options[i].style.display = "block";
+    let sequence = Promise.resolve();
+    const pkcs10 = new CertificationRequest();
+    let publicKey, privateKey;
+
+    // Commonname
+    pkcs10.subject.typesAndValues.push(
+      new AttributeTypeAndValue({
+        type: "2.5.4.3",
+        value: new asn1js.Utf8String({ value: common_name }),
+      })
+    );
+
+    pkcs10.attributes = [];
+
+    sequence = sequence.then(() => {
+      const algorithm = getAlgorithmParameters(signAlg, "generatekey");
+      if ("hash" in algorithm.algorithm)
+        algorithm.algorithm.hash.name = hashAlg;
+
+      return crypto.generateKey(algorithm.algorithm, true, algorithm.usages);
+    });
+
+    sequence = sequence.then(
+      (keyPair) => {
+        window.keys = keyPair;
+        publicKey = keyPair.publicKey;
+        privateKey = keyPair.privateKey;
+      },
+      (error) => Promise.reject(`Error during key generation: ${error}`)
+    );
+
+    sequence = sequence.then(() =>
+      pkcs10.subjectPublicKeyInfo.importKey(publicKey)
+    );
+
+    sequence = sequence.then(
+      async () => {
+        pkcs10.sign(privateKey, hashAlg);
+        window.csr = pkcs10;
+        console.info("Certification request created");
+        var pkcs8 = await crypto.exportKey("pkcs8", keys.privateKey);
+        var pem = formatPEM(
+          toBase64(String.fromCharCode.apply(null, new Uint8Array(pkcs8)))
+        );
+        console.log(
+          `-----BEGIN RSA PRIVATE KEY-----\r\n${pem}\r\n-----END RSA PRIVATE KEY-----\r\n`
+        );
+        resolve();
+      },
+      (error) => Promise.reject(`Error during exporting public key: ${error}`)
+    );
+
+    sequence = sequence.then(() => {
+      $("#enroll .loader-container").hide();
+      var prefix = null;
+      for (i in DEVICE_KEYWORDS) {
+        var keyword = DEVICE_KEYWORDS[i];
+        if (window.navigator.userAgent.indexOf(keyword) >= 0) {
+          prefix = keyword.toLowerCase();
+          break;
+        }
       }
-  }
-  $(".option.any").show();
+
+      if (prefix == null) {
+        $(".option").show();
+        return;
+      }
+
+      var protocols = query.protocols.split(",");
+      console.info("Showing snippets for:", protocols);
+      for (var j = 0; j < protocols.length; j++) {
+        var options = document.querySelectorAll(
+          ".option." + protocols[j] + "." + prefix
+        );
+        for (i = 0; i < options.length; i++) {
+          options[i].style.display = "block";
+        }
+      }
+      $(".option.any").show();
+    });
+  });
 }
 
 function blobToUuid(blob) {
-  var md = forge.md.md5.create();
-  md.update(blob);
-  var digest = md.digest().toHex();
-  return digest.substring(0, 8) + "-" +
-      digest.substring(8, 12) + "-" +
-      digest.substring(12, 16) + "-" +
-      digest.substring(16,20) + "-" +
-      digest.substring(20);
+  return new Promise((resolve, reject) => {
+    crypto.digest({ name: "SHA-1" }, stringToArrayBuffer(blob)).then((res) => {
+      res = bufferToHexCodes(res).toLowerCase();
+      res =
+        res.substring(0, 8) +
+        "-" +
+        res.substring(8, 12) +
+        "-" +
+        res.substring(12, 16) +
+        "-" +
+        res.substring(16, 20) +
+        "-" +
+        res.substring(20);
+
+      resolve(res);
+    });
+  });
 }
 
 function onEnroll(encoding) {
@@ -125,17 +199,42 @@ function onEnroll(encoding) {
   xhr.open('GET', "/api/certificate/");
   xhr.onload = function() {
     if (xhr.status === 200) {
+      // const xhrPEM = xhr.responseText.replace(
+      //   /(-----(BEGIN|END) CERTIFICATE-----|\n)/g,
+      //   ""
+      // );
+      // const xhrAsn1 = asn1js.fromBER(stringToArrayBuffer(fromBase64(xhrPEM)));
+      // var ca = new Certificate({ schema: xhrAsn1.result });
       var ca = forge.pki.certificateFromPem(xhr.responseText);
       console.info("Got CA certificate:");
       var xhr2 = new XMLHttpRequest();
       xhr2.open("PUT", "/api/token/?token=" + query.token );
-      xhr2.onload = function() {
+      xhr2.onload = async function() {
         if (xhr2.status === 200) {
           var a = document.createElement("a");
+
+          // const xhr2PEM = xhr.responseText.replace(
+          //   /(-----(BEGIN|END) CERTIFICATE-----|\n)/g,
+          //   ""
+          // );
+          // const xhr2asn1 = asn1js.fromBER(
+          //   stringToArrayBuffer(fromBase64(xhr2PEM))
+          // );
+          // var cert = await new Certificate({ schema: xhr2asn1.result });
+          
           var cert = forge.pki.certificateFromPem(xhr2.responseText);
           console.info("Got signed certificate:", xhr2.responseText);
+          
+          // Convert PKIJS key to forge key through PEM
+          let privateKeyArrayBuffer = new ArrayBuffer(0);
+          privateKeyArrayBuffer = await crypto.exportKey("pkcs8", keys.privateKey);
+          let tempPrivPem = `\r\n-----BEGIN PRIVATE KEY-----\r\n`;
+		      tempPrivPem = `${tempPrivPem}${formatPEM(toBase64(arrayBufferToString(privateKeyArrayBuffer)))}`;
+		      tempPrivPem = `${tempPrivPem}\r\n-----END PRIVATE KEY-----\r\n`;
+          let forgePrivKey = forge.pki.privateKeyFromPem(tempPrivPem);
+
           var p12 = forge.asn1.toDer(forge.pkcs12.toPkcs12Asn1(
-            keys.privateKey, [cert, ca], "", {algorithm: '3des'})).getBytes();
+            forgePrivKey, [cert, ca], "", {algorithm: '3des'})).getBytes();
 
           switch(encoding) {
             case 'p12':
@@ -158,7 +257,7 @@ function onEnroll(encoding) {
                       }
                   },
                   local: {
-                      p12: forge.util.encode64(p12)
+                      p12: toBase64(p12),
                   }
               });
               console.info("Buf is:", buf);
@@ -166,9 +265,17 @@ function onEnroll(encoding) {
               a.download = query.title + ".sswan";
               break
             case 'ovpn':
+              let privKey = await crypto.exportKey("pkcs8", keys.privateKey);
+              let privKeyBody = formatPEM(
+                toBase64(
+                  String.fromCharCode.apply(null, new Uint8Array(privKey))
+                )
+              );
+              let privKeyPem = `-----BEGIN RSA PRIVATE KEY-----\r\n${privKeyBody}\r\n-----END RSA PRIVATE KEY-----\r\n`;
+
               var buf = nunjucks.render('snippets/openvpn-client.conf', {
                   authority: authority,
-                  key: forge.pki.privateKeyToPem(keys.privateKey),
+                  key: privKeyPem,
                   cert: xhr2.responseText,
                   ca: xhr.responseText
               });
@@ -186,15 +293,19 @@ function onEnroll(encoding) {
                   common_name: common_name,
                   gateway: authority.namespace,
                   p12_uuid: blobToUuid(p12),
-                  p12: forge.util.encode64(p12),
-                  ca_uuid: blobToUuid(forge.asn1.toDer(forge.pki.certificateToAsn1(ca)).getBytes()),
-                  ca: forge.util.encode64(forge.asn1.toDer(forge.pki.certificateToAsn1(ca)).getBytes())
+                p12: toBase64(p12),
+                ca_uuid: blobToUuid(
+                  forge.asn1.toDer(forge.pki.certificateToAsn1(ca)).getBytes()
+                ),
+                ca: toBase64(
+                  forge.asn1.toDer(forge.pki.certificateToAsn1(ca)).getBytes()
+                ),
               });
               var mimetype = "application/x-apple-aspen-config";
               a.download = query.title + ".mobileconfig";
               break
           }
-          a.href = "data:" + mimetype + ";base64," + forge.util.encode64(buf);
+          a.href = "data:" + mimetype + ";base64," + toBase64(buf);
           console.info("Offering bundle for download");
           document.body.appendChild(a); // Firefox needs this!
           a.click();
@@ -210,7 +321,13 @@ function onEnroll(encoding) {
           }
         }
       };
-      xhr2.send(forge.pki.certificationRequestToPem(csr));
+      let resultString = "-----BEGIN CERTIFICATE REQUEST-----\r\n";
+      resultString = `${resultString}${formatPEM(
+        toBase64(arrayBufferToString(csr.toSchema().toBER(false)))
+      )}`;
+      resultString = `${resultString}\r\n-----END CERTIFICATE REQUEST-----\r\n`;
+
+      xhr2.send(resultString);
     }
   }
   xhr.send();
@@ -238,12 +355,8 @@ function onHashChanged() {
             }
             $("#view-dashboard").html(env.render('views/error.html', { message: msg }));
         },
-        success: function(authority) {
+        success: async function(authority) {
           window.authority = authority
-
-          // Device identifier
-          var dig = forge.md.sha384.create();
-          dig.update(window.navigator.userAgent);
 
           var prefix = "unknown";
           for (i in DEVICE_KEYWORDS) {
@@ -254,7 +367,9 @@ function onHashChanged() {
             }
           }
 
-          window.common_name = prefix + "-" + dig.digest().toHex().substring(0, 5);
+          // Device identifier
+          var dig = await blobToUuid(window.navigator.userAgent);
+          window.common_name = prefix + "-" + dig.substring(0, 5);
           console.info("Device identifier:", common_name);
 
           if (window.location.protocol != "https:") {
@@ -694,8 +809,16 @@ function loadAuthority(query) {
 
 
 
-            $("#enroll").click(function() {
-                var keys = forge.pki.rsa.generateKeyPair(1024);
+            $("#enroll").click(async function() {
+                var keys = await crypto.generateKey(
+                {
+                  name: "RSASSA-PKCS1-v1_5",
+                  modulusLength: 1024,
+                  publicExponent: new Uint8Array([1, 0, 1]),
+                  hash: "SHA-256",
+                },
+                true,
+                ["encrypt", "decrypt"]);
 
                 $.ajax({
                     method: "POST",
@@ -713,7 +836,11 @@ function loadAuthority(query) {
 
 
 
-                var privateKeyBuffer = forge.pki.privateKeyToPem(keys.privateKey);
+                var pkcs8 = await crypto.exportKey("pkcs8", keys.privateKey);
+                var pem = formatPEM(
+                  toBase64(String.fromCharCode.apply(null, new Uint8Array(pkcs8)))
+                );
+                privateKeyBuffer = `-----BEGIN RSA PRIVATE KEY-----\r\n${pem}\r\n-----END RSA PRIVATE KEY-----\r\n`;
             });
 
             /**
@@ -838,3 +965,28 @@ $(document).ready(function() {
     env.addFilter("serial", serialFilter);
     onHashChanged();
 });
+
+window.onLaunchShell = onLaunchShell;
+window.onRejectRequest = onRejectRequest;
+window.onSignRequest = onSignRequest;
+window.onShowAll = onShowAll;
+window.onKeyGen = onKeyGen;
+window.onEnroll = onEnroll;
+window.onHashChanged = onHashChanged;
+window.onToggleAccessButtonClicked = onToggleAccessButtonClicked;
+window.onTagClicked = onTagClicked;
+window.onNewTagClicked = onNewTagClicked;
+window.onTagFilterChanged = onTagFilterChanged;
+window.onLogEntry = onLogEntry;
+window.onRequestSubmitted = onRequestSubmitted;
+window.onRequestDeleted = onRequestDeleted;
+window.onLeaseUpdate = onLeaseUpdate;
+window.onRequestSigned = onRequestSigned;
+window.onCertificateRevoked = onCertificateRevoked;
+window.onTagUpdated = onTagUpdated;
+window.onAttributeUpdated = onAttributeUpdated;
+window.onSubmitRequest = onSubmitRequest;
+window.onServerStarted = onServerStarted;
+window.onServerStopped = onServerStopped;
+window.onIssueToken = onIssueToken;
+window.onInstanceAvailabilityUpdated = onInstanceAvailabilityUpdated;
