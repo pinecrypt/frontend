@@ -4,21 +4,22 @@ import {
   arrayBufferToString,
   stringToArrayBuffer,
   toBase64,
-  fromBase64,
   bufferToHexCodes
 } from "pvutils";
 import {
   getCrypto,
   getAlgorithmParameters,
 } from "../node_modules/pkijs/src/common.js";
-import { formatPEM } from "./formatPEM.js";
 import CertificationRequest from "../node_modules/pkijs/src/CertificationRequest.js";
 import AttributeTypeAndValue from "../node_modules/pkijs/src/AttributeTypeAndValue.js";
-import Certificate from "../node_modules/pkijs/src/Certificate.js";
+import { formatPEM } from "./formatPEM.js";
+import { pkcs12chain } from "./pkcs12chain.js";
+import { 
+  privKeyToBase64,
+  privKeyToPem,
+  certReqToPem
+} from "./util.js"
 
-let hashAlg = "SHA-384";
-let signAlg = "RSASSA-PKCS1-V1_5";
-const KEY_SIZE = 2048;
 const DEVICE_KEYWORDS = ["Android", "iPhone", "iPad", "Windows", "Ubuntu", "Fedora", "Mac", "Linux"];
 
 jQuery.timeago.settings.allowFuture = true;
@@ -81,16 +82,14 @@ function onShowAll() {
 }
 
 function onKeyGen() {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     if (window.navigator.userAgent.indexOf(" Edge/") >= 0) {
       $("#enroll .loader-container").hide();
       $("#enroll .edge-broken").show();
       return;
     }
 
-    let sequence = Promise.resolve();
-    const pkcs10 = new CertificationRequest();
-    let publicKey, privateKey;
+    let pkcs10 = new CertificationRequest();
 
     // Commonname
     pkcs10.subject.typesAndValues.push(
@@ -102,72 +101,57 @@ function onKeyGen() {
 
     pkcs10.attributes = [];
 
-    sequence = sequence.then(() => {
-      const algorithm = getAlgorithmParameters(signAlg, "generatekey");
-      if ("hash" in algorithm.algorithm)
-        algorithm.algorithm.hash.name = hashAlg;
+    let algorithm;
+    if (authority.certificate.algorithm == "rsa") {
+      algorithm = getAlgorithmParameters(
+        window.authority.rsa_sign_alg, "generatekey");
+    }
+    if (authority.certificate.algorithm == "ec") {
+      algorithm = getAlgorithmParameters(
+        window.authority.ec_sign_alg, "generatekey");
+    }
+    if ("hash" in algorithm.algorithm)
+      algorithm.algorithm.hash.name = window.authority.hash_alg;
 
-      return crypto.generateKey(algorithm.algorithm, true, algorithm.usages);
-    });
+    const keyPair = await crypto.generateKey(
+      algorithm.algorithm, true, algorithm.usages);
+    window.keys = keyPair;
+    const publicKey = keyPair.publicKey;
+    const privateKey = keyPair.privateKey;
 
-    sequence = sequence.then(
-      (keyPair) => {
-        window.keys = keyPair;
-        publicKey = keyPair.publicKey;
-        privateKey = keyPair.privateKey;
-      },
-      (error) => Promise.reject(`Error during key generation: ${error}`)
-    );
+    await pkcs10.subjectPublicKeyInfo.importKey(publicKey);
+    await pkcs10.sign(privateKey, window.authority.hash_alg);
+    window.csr = pkcs10;
+    console.info("Certification request created");
 
-    sequence = sequence.then(() =>
-      pkcs10.subjectPublicKeyInfo.importKey(publicKey)
-    );
-
-    sequence = sequence.then(
-      async () => {
-        pkcs10.sign(privateKey, hashAlg);
-        window.csr = pkcs10;
-        console.info("Certification request created");
-        var pkcs8 = await crypto.exportKey("pkcs8", keys.privateKey);
-        var pem = formatPEM(
-          toBase64(String.fromCharCode.apply(null, new Uint8Array(pkcs8)))
-        );
-        console.log(
-          `-----BEGIN RSA PRIVATE KEY-----\r\n${pem}\r\n-----END RSA PRIVATE KEY-----\r\n`
-        );
-        resolve();
-      },
-      (error) => Promise.reject(`Error during exporting public key: ${error}`)
-    );
-
-    sequence = sequence.then(() => {
-      $("#enroll .loader-container").hide();
-      var prefix = null;
-      for (i in DEVICE_KEYWORDS) {
-        var keyword = DEVICE_KEYWORDS[i];
-        if (window.navigator.userAgent.indexOf(keyword) >= 0) {
-          prefix = keyword.toLowerCase();
-          break;
-        }
+    $("#enroll .loader-container").hide();
+    var prefix = null;
+    for (i in DEVICE_KEYWORDS) {
+    var keyword = DEVICE_KEYWORDS[i];
+      if (window.navigator.userAgent.indexOf(keyword) >= 0) {
+        prefix = keyword.toLowerCase();
+        break;
       }
+    }
 
-      if (prefix == null) {
-        $(".option").show();
-        return;
-      }
+    if (prefix == null) {
+      $(".option").show();
+      return;
+    }
 
-      var protocols = query.protocols.split(",");
-      console.info("Showing snippets for:", protocols);
-      for (var j = 0; j < protocols.length; j++) {
-        var options = document.querySelectorAll(
-          ".option." + protocols[j] + "." + prefix
-        );
-        for (i = 0; i < options.length; i++) {
-          options[i].style.display = "block";
-        }
+    var protocols = query.protocols.split(",");
+    console.info("Showing snippets for:", protocols);
+    for (var j = 0; j < protocols.length; j++) {
+      var options = document.querySelectorAll(
+        ".option." + protocols[j] + "." + prefix
+      );
+      for (i = 0; i < options.length; i++) {
+        options[i].style.display = "block";
       }
-      $(".option.any").show();
-    });
+    }
+    $(".option.any").show();
+
+    resolve();
   });
 }
 
@@ -197,58 +181,40 @@ function onEnroll(encoding) {
   console.info("User agent:", window.navigator.userAgent);
   var xhr = new XMLHttpRequest();
   xhr.open('GET', "/api/certificate/");
-  xhr.onload = function() {
+  xhr.onload = async function() {
     if (xhr.status === 200) {
-      // const xhrPEM = xhr.responseText.replace(
-      //   /(-----(BEGIN|END) CERTIFICATE-----|\n)/g,
-      //   ""
-      // );
-      // const xhrAsn1 = asn1js.fromBER(stringToArrayBuffer(fromBase64(xhrPEM)));
-      // var ca = new Certificate({ schema: xhrAsn1.result });
-      var ca = forge.pki.certificateFromPem(xhr.responseText);
-      console.info("Got CA certificate:");
+      const caBase64 = xhr.responseText.replace(
+        /(-----(BEGIN|END) CERTIFICATE-----|\n)/g, "");
+
       var xhr2 = new XMLHttpRequest();
       xhr2.open("PUT", "/api/token/?token=" + query.token );
       xhr2.onload = async function() {
         if (xhr2.status === 200) {
           var a = document.createElement("a");
+          const certBase64 = xhr.responseText.replace(
+            /(-----(BEGIN|END) CERTIFICATE-----|\n)/g, "");
 
-          // const xhr2PEM = xhr.responseText.replace(
-          //   /(-----(BEGIN|END) CERTIFICATE-----|\n)/g,
-          //   ""
-          // );
-          // const xhr2asn1 = asn1js.fromBER(
-          //   stringToArrayBuffer(fromBase64(xhr2PEM))
-          // );
-          // var cert = await new Certificate({ schema: xhr2asn1.result });
-          
-          var cert = forge.pki.certificateFromPem(xhr2.responseText);
-          console.info("Got signed certificate:", xhr2.responseText);
-          
-          // Convert PKIJS key to forge key through PEM
-          let privateKeyArrayBuffer = new ArrayBuffer(0);
-          privateKeyArrayBuffer = await crypto.exportKey("pkcs8", keys.privateKey);
-          let tempPrivPem = `\r\n-----BEGIN PRIVATE KEY-----\r\n`;
-		      tempPrivPem = `${tempPrivPem}${formatPEM(toBase64(arrayBufferToString(privateKeyArrayBuffer)))}`;
-		      tempPrivPem = `${tempPrivPem}\r\n-----END PRIVATE KEY-----\r\n`;
-          let forgePrivKey = forge.pki.privateKeyFromPem(tempPrivPem);
-
-          var p12 = forge.asn1.toDer(forge.pkcs12.toPkcs12Asn1(
-            forgePrivKey, [cert, ca], "", {algorithm: '3des'})).getBytes();
+          // Private key to base64 (for pkcs12chain)
+          let privKeyBase64 = await privKeyToBase64(keys.privateKey, crypto);
 
           switch(encoding) {
             case 'p12':
-              var buf = forge.asn1.toDer(p12).getBytes();
+              var p12 = await pkcs12chain(privKeyBase64, [certBase64, caBase64], "", window.authority.hash_alg);
+
+              var buf = arrayBufferToString(p12.toSchema().toBER(false));
               var mimetype = "application/x-pkcs12"
               a.download = query.title + ".p12";
               break
             case 'sswan':
+              var p12 = arrayBufferToString(
+                  (await pkcs12chain(privKeyBase64, [certBase64, caBase64], "", window.authority.hash_alg)).toSchema().toBER(false));
+                
               var buf = JSON.stringify({
-                  uuid: blobToUuid(authority.namespace),
+                  uuid: await blobToUuid(authority.namespace),
                   name: authority.namespace,
                   type: "ikev2-cert",
-                  'ike-proposal': 'aes256-sha384-prfsha384-modp2048',
-                  'esp-proposal': 'aes128gcm16-modp2048',
+                  'ike-proposal': window.authority.strongswan.ike,
+                  'esp-proposal': window.authority.strongswan.esp,
                   remote: {
                       addr: authority.namespace,
                       revocation: {
@@ -265,13 +231,7 @@ function onEnroll(encoding) {
               a.download = query.title + ".sswan";
               break
             case 'ovpn':
-              let privKey = await crypto.exportKey("pkcs8", keys.privateKey);
-              let privKeyBody = formatPEM(
-                toBase64(
-                  String.fromCharCode.apply(null, new Uint8Array(privKey))
-                )
-              );
-              let privKeyPem = `-----BEGIN RSA PRIVATE KEY-----\r\n${privKeyBody}\r\n-----END RSA PRIVATE KEY-----\r\n`;
+              let privKeyPem = await privKeyToPem(keys.privateKey, crypto);
 
               var buf = nunjucks.render('snippets/openvpn-client.conf', {
                   authority: authority,
@@ -283,23 +243,23 @@ function onEnroll(encoding) {
               a.download = query.title + ".ovpn";
               break
             case 'mobileconfig':
-              var p12 = forge.asn1.toDer(forge.pkcs12.toPkcs12Asn1(
-                  keys.privateKey, [cert, ca], "1234", {algorithm: '3des'})).getBytes();
+              var p12 = arrayBufferToString(
+                (await pkcs12chain(
+                  privKeyBase64, [certBase64, caBase64],
+                  "1234", window.authority.hash_alg))
+                .toSchema().toBER(false));
+
               var buf = nunjucks.render('snippets/ios.mobileconfig', {
                   authority: authority,
-                  service_uuid: blobToUuid(query.title),
-                  conf_uuid: blobToUuid(query.title + " conf1"),
+                  service_uuid: await blobToUuid(query.title),
+                  conf_uuid: await blobToUuid(query.title + " conf1"),
                   title: query.title,
                   common_name: common_name,
                   gateway: authority.namespace,
-                  p12_uuid: blobToUuid(p12),
+                  p12_uuid: await blobToUuid(p12),
                 p12: toBase64(p12),
-                ca_uuid: blobToUuid(
-                  forge.asn1.toDer(forge.pki.certificateToAsn1(ca)).getBytes()
-                ),
-                ca: toBase64(
-                  forge.asn1.toDer(forge.pki.certificateToAsn1(ca)).getBytes()
-                ),
+                ca_uuid: await blobToUuid(caBase64),
+                ca: caBase64,
               });
               var mimetype = "application/x-apple-aspen-config";
               a.download = query.title + ".mobileconfig";
@@ -321,11 +281,7 @@ function onEnroll(encoding) {
           }
         }
       };
-      let resultString = "-----BEGIN CERTIFICATE REQUEST-----\r\n";
-      resultString = `${resultString}${formatPEM(
-        toBase64(arrayBufferToString(csr.toSchema().toBER(false)))
-      )}`;
-      resultString = `${resultString}\r\n-----END CERTIFICATE REQUEST-----\r\n`;
+      let resultString = await certReqToPem(window.csr);
 
       xhr2.send(resultString);
     }
@@ -333,7 +289,7 @@ function onEnroll(encoding) {
   xhr.send();
 }
 
-function onHashChanged() {
+async function onHashChanged() {
 
     window.query = {};
     var a = location.hash.substring(1).split('&');
@@ -357,6 +313,9 @@ function onHashChanged() {
         },
         success: async function(authority) {
           window.authority = authority
+          window.authority.hash_alg = "SHA-384";
+          window.authority.rsa_sign_alg = "RSASSA-PKCS1-v1_5";
+          window.authority.ec_sign_alg = "ECDSA";
 
           var prefix = "unknown";
           for (i in DEVICE_KEYWORDS) {
@@ -385,8 +344,8 @@ function onHashChanged() {
                   for (i = 0; i < options.length; i++) {
                       options[i].style.display = "none";
                   }
-                  setTimeout(onKeyGen, 100);
                   console.info("Generating key pair...");
+                  await onKeyGen();
               } else {
                   loadAuthority(query);
               }
