@@ -12,20 +12,18 @@ import {
 } from "../node_modules/pkijs/src/common.js";
 import CertificationRequest from "../node_modules/pkijs/src/CertificationRequest.js";
 import AttributeTypeAndValue from "../node_modules/pkijs/src/AttributeTypeAndValue.js";
-import { formatPEM } from "./formatPEM.js";
 import { pkcs12chain } from "./pkcs12chain.js";
-import { 
-  privKeyToBase64,
-  privKeyToPem,
-  certReqToPem
+import {
+  pkijsToPem,
+  pkijsToBase64,
 } from "./util.js"
 
 const DEVICE_KEYWORDS = ["Android", "iPhone", "iPad", "Windows", "Ubuntu", "Fedora", "Mac", "Linux"];
 
 jQuery.timeago.settings.allowFuture = true;
 
-const crypto = getCrypto();
-if (typeof crypto === "undefined")
+window.cryptoEngine = getCrypto();
+if (typeof window.cryptoEngine === "undefined")
   console.error("No WebCrypto extension found");
 
 function onLaunchShell(common_name) {
@@ -113,7 +111,7 @@ function onKeyGen() {
     if ("hash" in algorithm.algorithm)
       algorithm.algorithm.hash.name = window.authority.hash_alg;
 
-    const keyPair = await crypto.generateKey(
+    const keyPair = await window.cryptoEngine.generateKey(
       algorithm.algorithm, true, algorithm.usages);
     window.keys = keyPair;
     const publicKey = keyPair.publicKey;
@@ -157,7 +155,10 @@ function onKeyGen() {
 
 function blobToUuid(blob) {
   return new Promise((resolve, reject) => {
-    crypto.digest({ name: "SHA-1" }, stringToArrayBuffer(blob)).then((res) => {
+    window.cryptoEngine.digest(
+    { name: "SHA-1" },
+    stringToArrayBuffer(blob))
+    .then((res) => {
       res = bufferToHexCodes(res).toLowerCase();
       res =
         res.substring(0, 8) +
@@ -195,7 +196,7 @@ function onEnroll(encoding) {
             /(-----(BEGIN|END) CERTIFICATE-----|\n)/g, "");
 
           // Private key to base64 (for pkcs12chain)
-          let privKeyBase64 = await privKeyToBase64(keys.privateKey, crypto);
+          let privKeyBase64 = await pkijsToBase64(keys.privateKey);
 
           switch(encoding) {
             case 'p12':
@@ -231,7 +232,7 @@ function onEnroll(encoding) {
               a.download = query.title + ".sswan";
               break
             case 'ovpn':
-              let privKeyPem = await privKeyToPem(keys.privateKey, crypto);
+              let privKeyPem = await pkijsToPem(keys.privateKey);
 
               var buf = nunjucks.render('snippets/openvpn-client.conf', {
                   authority: authority,
@@ -281,9 +282,7 @@ function onEnroll(encoding) {
           }
         }
       };
-      let resultString = await certReqToPem(window.csr);
-
-      xhr2.send(resultString);
+      xhr2.send(await pkijsToPem(window.csr));
     }
   }
   xhr.send();
@@ -769,7 +768,7 @@ function loadAuthority(query) {
 
 
             $("#enroll").click(async function() {
-                var keys = await crypto.generateKey(
+                var keys = await window.cryptoEngine.generateKey(
                 {
                   name: "RSASSA-PKCS1-v1_5",
                   modulusLength: 1024,
@@ -795,11 +794,7 @@ function loadAuthority(query) {
 
 
 
-                var pkcs8 = await crypto.exportKey("pkcs8", keys.privateKey);
-                var pem = formatPEM(
-                  toBase64(String.fromCharCode.apply(null, new Uint8Array(pkcs8)))
-                );
-                privateKeyBuffer = `-----BEGIN RSA PRIVATE KEY-----\r\n${pem}\r\n-----END RSA PRIVATE KEY-----\r\n`;
+                var privateKeyBuffer = pkijsToPem(keys.privateKey);
             });
 
             /**
