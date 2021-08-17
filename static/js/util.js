@@ -35,7 +35,7 @@ export function pkijsToPem(pkijsObj) {
             String.fromCharCode.apply(null, new Uint8Array(privKeyExported))
           )
         );
-        resolve(`-----BEGIN RSA PRIVATE KEY-----\r\n${privKeyBody}\r\n-----END RSA PRIVATE KEY-----\r\n`);
+        resolve(`-----BEGIN PRIVATE KEY-----\r\n${privKeyBody}\r\n-----END PRIVATE KEY-----\r\n`);
         break;
 
       case "CertificationRequest":
