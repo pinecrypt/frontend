@@ -327,14 +327,14 @@ async function onHashChanged() {
             }
           }
 
-          // Device identifier
-          var dig = await blobToUuid(window.navigator.userAgent);
-          window.common_name = prefix + "-" + dig.substring(0, 5);
-          console.info("Device identifier:", common_name);
-
           if (window.location.protocol != "https:") {
               $("#view-dashboard").html(env.render('views/insecure.html', {authority:authority}));
           } else {
+              // Device identifier
+              var dig = await blobToUuid(window.navigator.userAgent);
+              window.common_name = prefix + "-" + dig.substring(0, 5);
+              console.info("Device identifier:", common_name);
+              
               if (query.action == "enroll") {
                   $("#view-dashboard").html(env.render('views/enroll.html', {
                     common_name: common_name,
