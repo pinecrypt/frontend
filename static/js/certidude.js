@@ -772,7 +772,7 @@ function loadAuthority(query) {
             $("#enroll").click(async function() {
                 var keys = await window.cryptoEngine.generateKey(
                 {
-                  name: window.authority.certificate.key_type_specific,
+                  name: window.authority.certificate.signature_algorithm,
                   modulusLength: window.authority.certificate.key_size,
                   publicExponent: new Uint8Array([1, 0, 1]),
                   hash: window.authority.certificate.hash_algorithm,
