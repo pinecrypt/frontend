@@ -202,13 +202,6 @@ function onEnroll(encoding) {
           let privKeyBase64 = await pkijsToBase64(keys.privateKey);
 
           switch(encoding) {
-            case 'p12':
-              var p12 = await pkcs12chain(privKeyBase64, [certBase64, caBase64], "", window.authority.certificate.hash_algorithm);
-
-              var buf = arrayBufferToString(p12.toSchema().toBER(false));
-              var mimetype = "application/x-pkcs12"
-              a.download = query.title + ".p12";
-              break
             case 'sswan':
               var p12 = arrayBufferToString(
                   (await pkcs12chain(privKeyBase64, [certBase64, caBase64], "", window.authority.certificate.hash_algorithm)).toSchema().toBER(false));
