@@ -48,3 +48,7 @@ export function pkijsToPem(pkijsObj) {
       }
   });
 }
+
+export function pemToBase64(pem) {
+  return pem.replace(/(-----(BEGIN|END) CERTIFICATE-----|\n)/g, "");
+}

@@ -16,6 +16,7 @@ import { pkcs12chain } from "./pkcs12chain.js";
 import {
   pkijsToPem,
   pkijsToBase64,
+  pemToBase64,
 } from "./util.js"
 
 const DEVICE_KEYWORDS = ["Android", "iPhone", "iPad", "Windows", "Ubuntu", "Fedora", "Mac", "Linux"];
@@ -102,14 +103,14 @@ function onKeyGen() {
     let algorithm;
     if (authority.certificate.algorithm == "rsa") {
       algorithm = getAlgorithmParameters(
-        window.authority.rsa_sign_alg, "generatekey");
+        window.authority.certificate.key_type_specific, "generatekey");
     }
     if (authority.certificate.algorithm == "ec") {
       algorithm = getAlgorithmParameters(
-        window.authority.ec_sign_alg, "generatekey");
+        window.authority.certificate.curve, "generatekey");
     }
     if ("hash" in algorithm.algorithm)
-      algorithm.algorithm.hash.name = window.authority.hash_alg;
+      algorithm.algorithm.hash.name = window.authority.certificate.hash_algorithm;
 
     const keyPair = await window.cryptoEngine.generateKey(
       algorithm.algorithm, true, algorithm.usages);
@@ -118,7 +119,7 @@ function onKeyGen() {
     const privateKey = keyPair.privateKey;
 
     await pkcs10.subjectPublicKeyInfo.importKey(publicKey);
-    await pkcs10.sign(privateKey, window.authority.hash_alg);
+    await pkcs10.sign(privateKey, window.authority.certificate.hash_algorithm);
     window.csr = pkcs10;
     console.info("Certification request created");
 
@@ -184,23 +185,21 @@ function onEnroll(encoding) {
   xhr.open('GET', "/api/certificate/");
   xhr.onload = async function() {
     if (xhr.status === 200) {
-      const caBase64 = xhr.responseText.replace(
-        /(-----(BEGIN|END) CERTIFICATE-----|\n)/g, "");
+      const caBase64 = pemToBase64(xhr.responseText);
 
       var xhr2 = new XMLHttpRequest();
       xhr2.open("PUT", "/api/token/?token=" + query.token );
       xhr2.onload = async function() {
         if (xhr2.status === 200) {
           var a = document.createElement("a");
-          const certBase64 = xhr.responseText.replace(
-            /(-----(BEGIN|END) CERTIFICATE-----|\n)/g, "");
+          const certBase64 = pemToBase64(xhr.responseText);
 
           // Private key to base64 (for pkcs12chain)
           let privKeyBase64 = await pkijsToBase64(keys.privateKey);
 
           switch(encoding) {
             case 'p12':
-              var p12 = await pkcs12chain(privKeyBase64, [certBase64, caBase64], "", window.authority.hash_alg);
+              var p12 = await pkcs12chain(privKeyBase64, [certBase64, caBase64], "", window.authority.certificate.hash_algorithm);
 
               var buf = arrayBufferToString(p12.toSchema().toBER(false));
               var mimetype = "application/x-pkcs12"
@@ -208,7 +207,7 @@ function onEnroll(encoding) {
               break
             case 'sswan':
               var p12 = arrayBufferToString(
-                  (await pkcs12chain(privKeyBase64, [certBase64, caBase64], "", window.authority.hash_alg)).toSchema().toBER(false));
+                  (await pkcs12chain(privKeyBase64, [certBase64, caBase64], "", window.authority.certificate.hash_algorithm)).toSchema().toBER(false));
                 
               var buf = JSON.stringify({
                   uuid: await blobToUuid(authority.namespace),
@@ -247,7 +246,7 @@ function onEnroll(encoding) {
               var p12 = arrayBufferToString(
                 (await pkcs12chain(
                   privKeyBase64, [certBase64, caBase64],
-                  "1234", window.authority.hash_alg))
+                  "1234", window.authority.certificate.hash_algorithm))
                 .toSchema().toBER(false));
 
               var buf = nunjucks.render('snippets/ios.mobileconfig', {
@@ -312,9 +311,12 @@ async function onHashChanged() {
         },
         success: async function(authority) {
           window.authority = authority
-          window.authority.hash_alg = "SHA-384";
-          window.authority.rsa_sign_alg = "RSASSA-PKCS1-v1_5";
-          window.authority.ec_sign_alg = "ECDSA";
+
+          // convert "sha512" to "SHA-512"
+          window.authority.certificate.hash_algorithm =
+            (window.authority.certificate.hash_algorithm.slice(0,3) +
+            "-" + window.authority.certificate.hash_algorithm.slice(3))
+            .toUpperCase();
 
           var prefix = "unknown";
           for (i in DEVICE_KEYWORDS) {
@@ -770,10 +772,10 @@ function loadAuthority(query) {
             $("#enroll").click(async function() {
                 var keys = await window.cryptoEngine.generateKey(
                 {
-                  name: "RSASSA-PKCS1-v1_5",
-                  modulusLength: 1024,
+                  name: window.authority.certificate.key_type_specific,
+                  modulusLength: window.authority.certificate.key_size,
                   publicExponent: new Uint8Array([1, 0, 1]),
-                  hash: "SHA-256",
+                  hash: window.authority.certificate.hash_algorithm,
                 },
                 true,
                 ["encrypt", "decrypt"]);
