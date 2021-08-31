@@ -103,11 +103,15 @@ function onKeyGen() {
     let algorithm;
     if (authority.certificate.algorithm == "rsa") {
       algorithm = getAlgorithmParameters(
-        window.authority.certificate.key_type_specific, "generatekey");
+        window.authority.certificate.signature_algorithm, "generatekey");
     }
     if (authority.certificate.algorithm == "ec") {
-      algorithm = getAlgorithmParameters(
-        window.authority.certificate.curve, "generatekey");
+      if(authority.certificate.curve.startsWith("secp")) {
+        algorithm = getAlgorithmParameters(
+          "ECDSA", "generatekey");
+        algorithm.algorithm.namedCurve = 
+          `P-${authority.certificate.curve.slice(4,7)}`;
+      }
     }
     if ("hash" in algorithm.algorithm)
       algorithm.algorithm.hash.name = window.authority.certificate.hash_algorithm;
@@ -311,12 +315,6 @@ async function onHashChanged() {
         },
         success: async function(authority) {
           window.authority = authority
-
-          // convert "sha512" to "SHA-512"
-          window.authority.certificate.hash_algorithm =
-            (window.authority.certificate.hash_algorithm.slice(0,3) +
-            "-" + window.authority.certificate.hash_algorithm.slice(3))
-            .toUpperCase();
 
           var prefix = "unknown";
           for (i in DEVICE_KEYWORDS) {
