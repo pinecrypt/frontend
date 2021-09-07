@@ -22,6 +22,7 @@ Invoke-WebRequest `{% if token %}
   -Method PUT `{% else %}
   -Uri 'https://{{ authority.namespace }}:8443/api/request/?wait=yes&autosign=yes' `
   -Method POST `{% endif %}
+  -Headers @{'Date' = (Get-Date).ToUniversalTime().ToString("r")} `
   -TimeoutSec 900 `
   -InFile host_csr.pem `
   -ContentType application/pkcs10 `

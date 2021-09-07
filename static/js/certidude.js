@@ -361,7 +361,9 @@ function onToggleAccessButtonClicked(e) {
 
     var value = $(e.target).attr("data-value") == 'True';
 
-    var confirm = window.confirm("Do you want to disable " + cn);
+    var textValues = {false:"Disable",true:"Enable"}
+
+    var confirm = window.confirm("Do you want to " + textValues[value] +" "+ cn);
 
     if (confirm) {
         $.ajax({
