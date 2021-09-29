@@ -88,6 +88,9 @@ function onKeyGen() {
       return;
     }
 
+    console.info("Using hashing algorithm:", window.authority.webcrypto.hash_algorithm);
+    console.info("Using signature algorithm:", window.authority.webcrypto.signature_algorithm);
+
     let pkcs10 = new CertificationRequest();
 
     // Commonname
@@ -103,18 +106,15 @@ function onKeyGen() {
     let algorithm;
     if (authority.certificate.algorithm == "rsa") {
       algorithm = getAlgorithmParameters(
-        window.authority.certificate.signature_algorithm, "generatekey");
+        window.authority.webcrypto.signature_algorithm, "generatekey");
+    } else if (authority.certificate.algorithm == "ec") {
+        algorithm = getAlgorithmParameters("ECDSA", "generatekey");
+        algorithm.algorithm.namedCurve = window.authority.webcrypto.curve;
+    } else {
+      console.error("Unsupported certificate algortihm:", authority.certificate.algorithm);
     }
-    if (authority.certificate.algorithm == "ec") {
-      if(authority.certificate.curve.startsWith("secp")) {
-        algorithm = getAlgorithmParameters(
-          "ECDSA", "generatekey");
-        algorithm.algorithm.namedCurve = 
-          `P-${authority.certificate.curve.slice(4,7)}`;
-      }
-    }
-    if ("hash" in algorithm.algorithm)
-      algorithm.algorithm.hash.name = window.authority.certificate.hash_algorithm;
+
+    algorithm.algorithm.hash.name = window.authority.webcrypto.hash_algorithm;
 
     const keyPair = await window.cryptoEngine.generateKey(
       algorithm.algorithm, true, algorithm.usages);
@@ -123,7 +123,7 @@ function onKeyGen() {
     const privateKey = keyPair.privateKey;
 
     await pkcs10.subjectPublicKeyInfo.importKey(publicKey);
-    await pkcs10.sign(privateKey, window.authority.certificate.hash_algorithm);
+    await pkcs10.sign(privateKey, window.authority.webcrypto.hash_algorithm);
     window.csr = pkcs10;
     console.info("Certification request created");
 
@@ -204,7 +204,7 @@ function onEnroll(encoding) {
           switch(encoding) {
             case 'sswan':
               var p12 = arrayBufferToString(
-                  (await pkcs12chain(privKeyBase64, [certBase64, caBase64], "", window.authority.certificate.hash_algorithm)).toSchema().toBER(false));
+                  (await pkcs12chain(privKeyBase64, [certBase64, caBase64], "", window.authority.webcrypto.hash_algorithm)).toSchema().toBER(false));
                 
               var buf = JSON.stringify({
                   uuid: await blobToUuid(authority.namespace),
@@ -243,7 +243,7 @@ function onEnroll(encoding) {
               var p12 = arrayBufferToString(
                 (await pkcs12chain(
                   privKeyBase64, [certBase64, caBase64],
-                  "1234", window.authority.certificate.hash_algorithm))
+                  "1234", window.authority.webcrypto.hash_algorithm))
                 .toSchema().toBER(false));
 
               var buf = nunjucks.render('snippets/ios.mobileconfig', {
@@ -765,10 +765,10 @@ function loadAuthority(query) {
             $("#enroll").click(async function() {
                 var keys = await window.cryptoEngine.generateKey(
                 {
-                  name: window.authority.certificate.signature_algorithm,
+                  name: window.authority.webcrypto.signature_algorithm,
                   modulusLength: window.authority.certificate.key_size,
                   publicExponent: new Uint8Array([1, 0, 1]),
-                  hash: window.authority.certificate.hash_algorithm,
+                  hash: window.authority.webcrypto.hash_algorithm,
                 },
                 true,
                 ["encrypt", "decrypt"]);
