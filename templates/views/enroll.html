@@ -33,18 +33,9 @@ OS/soft status
   <div class="col-sm-12 mt-3 option ubuntu linux openvpn">
     <div class="card">
       <div class="card-block">
-        <h3 class="card-title">Ubuntu 16.04+</h3>
+        <h3 class="card-title">Ubuntu 20.04+</h3>
         <p class="card-text">Install OpenVPN plugin for NetworkManager by executing following two command in the terminal:
-
-        <pre><code># Ubuntu 16.04 ships with older OpenVPN 2.3, to support newer ciphers add OpenVPN's repo
-if [ $(lsb_relase -cs) == "xenial" ]; then
-  wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg|apt-key add -
-  echo "deb http://build.openvpn.net/debian/openvpn/release/2.4 xenial main" > /etc/apt/sources.list.d/openvpn-aptrepo.list
-  apt update
-  apt install openvpn
-fi
-
-sudo apt install -y network-manager-openvpn-gnome
+        <pre><code>sudo apt install -y network-manager-openvpn-gnome
 sudo systemctl restart network-manager
 </code></pre>
 
@@ -77,10 +68,10 @@ sudo systemctl restart network-manager
     </div>
   </div>
 
-  <div class="col-sm-12 mt-3 option ubuntu linux openvpn advanced">
+  <div class="col-sm-12 mt-3 option advanced">
     <div class="card">
       <div class="card-block">
-        <h3 class="card-title">Ubuntu 18.04+ (advanced)</h3>
+        <h3 class="card-title">Ubuntu 20.04+ via OpenVPN (advanced)</h3>
         <p class="card-text">Copy-paste follownig to terminal as root user:</p>
         <pre><code>{% include "snippets/request-client.sh" %}
 cat << EOF > '/etc/NetworkManager/system-connections/OpenVPN to {{ authority.namespace }}'
@@ -92,10 +83,10 @@ nmcli con reload
     </div>
   </div>
 
-  <div class="col-sm-12 mt-3 option ubuntu linux ikev2 advanced">
+  <div class="col-sm-12 mt-3 option advanced">
     <div class="card">
       <div class="card-block">
-        <h3 class="card-title">Ubuntu 18.04+ (advanced)</h3>
+        <h3 class="card-title">Ubuntu 20.04+ via IPSec (advanced)</h3>
         <p class="card-text">Copy-paste follownig to terminal as root user:</p>
         <pre><code>{% include "snippets/request-client.sh" %}
 cat << EOF > '/etc/NetworkManager/system-connections/IPSec to {{ authority.namespace }}'
